@@ -354,11 +354,17 @@ func (task *Task) dockerHostConfig(container *Container, dockerContainerMap map[
 		return nil, &HostConfigError{err.Error()}
 	}
 
+	shmSize, err := task.dockerShmSize(container)
+	if err != nil {
+		return nil, &HostConfigError{err.Error()}
+	}
+
 	hostConfig := &docker.HostConfig{
 		Links:        dockerLinkArr,
 		Binds:        binds,
 		PortBindings: dockerPortMap,
 		VolumesFrom:  volumesFrom,
+		ShmSize:      shmSize,
 	}
 
 	if container.DockerConfig.HostConfig != nil {
@@ -369,6 +375,14 @@ func (task *Task) dockerHostConfig(container *Container, dockerContainerMap map[
 	}
 
 	return hostConfig, nil
+}
+
+func (task *Task) dockerShmSize(container *Container) (int64, error) {
+	if s, ok := container.Environment["ECS_SHM_SIZE"]; ok {
+		return strconv.ParseInt(s, 10, 64)
+	}
+
+	return 0, nil
 }
 
 func (task *Task) dockerLinks(container *Container, dockerContainerMap map[string]*DockerContainer) ([]string, error) {

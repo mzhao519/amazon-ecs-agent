@@ -15,6 +15,7 @@ package dockerclient
 
 import (
 	"sync"
+	"time"
 
 	"github.com/aws/amazon-ecs-agent/agent/engine/dockeriface"
 	log "github.com/cihub/seelog"
@@ -120,9 +121,21 @@ func (f *factory) GetClient(version DockerVersion) (dockeriface.Client, error) {
 		return nil, err
 	}
 
+	attempt := 0
+pingDocker:
+	attempt++
+	log.Debugf("Attempt %d to ping client (%s)", attempt, version)
 	err = client.Ping()
 	if err != nil {
-		log.Debugf("Error pinging client (%s)", version)
+		log.Debugf("Error pinging client (%s): %s", version, err.Error())
+
+		if attempt < 10 {
+			dur := time.Second * time.Duration(5*attempt)
+			log.Debugf("Attempt %d; waiting %s and retrying", dur)
+			time.Sleep(dur)
+			goto pingDocker
+		}
+
 		return nil, err
 	}
 

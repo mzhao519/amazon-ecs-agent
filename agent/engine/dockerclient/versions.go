@@ -31,8 +31,9 @@ const (
 	Version_1_21 DockerVersion = "1.21"
 	Version_1_22 DockerVersion = "1.22"
 	Version_1_23 DockerVersion = "1.23"
+	Version_1_24 DockerVersion = "1.24"
 
-	defaultVersion = Version_1_17
+	defaultVersion = Version_1_24
 )
 
 var supportedVersions []DockerVersion
@@ -46,6 +47,7 @@ func init() {
 		Version_1_21,
 		Version_1_22,
 		Version_1_23,
+		Version_1_24,
 	}
 }
 

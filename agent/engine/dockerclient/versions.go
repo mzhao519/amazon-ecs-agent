@@ -70,10 +70,17 @@ type factory struct {
 // newVersionedClient is a variable such that the implementation can be
 // swapped out for unit tests
 var newVersionedClient = func(endpoint, version string) (dockeriface.Client, error) {
-	return docker.NewVersionedClient(endpoint, version)
+	log.Debugf("Trying to connect to client version %s: %s", version, endpoint)
+	cl, err := docker.NewVersionedClient(endpoint, version)
+	if err != nil {
+		log.Errorf("Error connecting to client version %s at %s: %s", version, endpoint, err.Error())
+	}
+	return cl, err
 }
 
 func NewFactory(endpoint string) Factory {
+	log.Debugf("Constructing new factory with endpoint %s", endpoint)
+
 	return &factory{
 		endpoint: endpoint,
 		clients:  make(map[DockerVersion]dockeriface.Client),
@@ -81,12 +88,17 @@ func NewFactory(endpoint string) Factory {
 }
 
 func (f *factory) GetDefaultClient() (dockeriface.Client, error) {
+	log.Debugf("Getting default client (%s) from factory", defaultVersion)
+
 	return f.GetClient(defaultVersion)
 }
 
 func (f *factory) GetClient(version DockerVersion) (dockeriface.Client, error) {
+	log.Debugf("Getting specific client (%s) from factory", version)
+
 	client, ok := f.clients[version]
 	if ok {
+		log.Debugf("Returning cached client (%s) before lock", version)
 		return client, nil
 	}
 
@@ -96,20 +108,24 @@ func (f *factory) GetClient(version DockerVersion) (dockeriface.Client, error) {
 	// double-check now that we're in a lock
 	client, ok = f.clients[version]
 	if ok {
+		log.Debugf("Returning cached client (%s) after lock", version)
 		return client, nil
 	}
 
 	client, err := newVersionedClient(f.endpoint, string(version))
 	if err != nil {
+		log.Debugf("Error acquiring client (%s)", version)
 		return nil, err
 	}
 
 	err = client.Ping()
 	if err != nil {
+		log.Debugf("Error pinging client (%s)", version)
 		return nil, err
 	}
 
 	f.clients[version] = client
+	log.Debugf("Returning new client (%s)", version)
 	return client, nil
 }
 

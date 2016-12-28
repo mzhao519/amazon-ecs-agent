@@ -115,25 +115,35 @@ func (f *factory) GetClient(version DockerVersion) (dockeriface.Client, error) {
 		return client, nil
 	}
 
+	attempt := 0
+attemptConnection:
+	attempt++
+
+	log.Debugf("Attempt %d to connect to client (%s)", attempt, version)
+
 	client, err := newVersionedClient(f.endpoint, string(version))
 	if err != nil {
-		log.Debugf("Error acquiring client (%s)", version)
-		return nil, err
-	}
-
-	attempt := 0
-pingDocker:
-	attempt++
-	log.Debugf("Attempt %d to ping client (%s)", attempt, version)
-	err = client.Ping()
-	if err != nil {
-		log.Debugf("Error pinging client (%s): %s", version, err.Error())
+		log.Debugf("Error acquiring client (version=%s, attempt=%d): %s", version, attempt, err.Error())
 
 		if attempt < 10 {
 			dur := time.Second * time.Duration(5*attempt)
-			log.Debugf("Attempt %d; waiting %s and retrying", dur)
+			log.Debugf("Attempt %d; waiting %s and retrying", attempt, dur)
 			time.Sleep(dur)
-			goto pingDocker
+			goto attemptConnection
+		}
+
+		return nil, err
+	}
+
+	err = client.Ping()
+	if err != nil {
+		log.Debugf("Error pinging client (version=%s, atetmpt-%d): %s", version, attempt, err.Error())
+
+		if attempt < 10 {
+			dur := time.Second * time.Duration(5*attempt)
+			log.Debugf("Attempt %d; waiting %s and retrying", attempt, dur)
+			time.Sleep(dur)
+			goto attemptConnection
 		}
 
 		return nil, err
